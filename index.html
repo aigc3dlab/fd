@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title data-i18n="title">找茬模拟器合集</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* 添加一些基本样式确保页面正常显示 */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        
+        .container {
+            min-height: 100vh;
+            background-color: #f5f5f5;
+        }
+    </style>
+    <audio id="correctSound" preload="auto">
+        <source src="./sounds/correct.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="wrongSound" preload="auto">
+        <source src="./sounds/wrong.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="startSound" preload="auto">
+        <source src="./sounds/start.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="completeSound" preload="auto">
+        <source src="./sounds/complete.mp3" type="audio/mpeg">
+    </audio>
+</head>
+<body>
+    <div class="container">
+        <!-- 菜单栏 -->
+        <div class="menu-bar">
+            <div class="menu-item">
+                <span data-i18n="menu_theme">主题类型</span>
+                <div class="submenu">
+                    <div class="submenu-item" onclick="setWallType('color')" data-i18n="wall_color">魔方墙</div>
+                    <div class="submenu-item" onclick="setWallType('alphabet')" data-i18n="wall_alphabet">字母墙</div>
+                    <div class="submenu-item" onclick="setWallType('chinese')" data-i18n="wall_chinese">汉字墙</div>
+                    <div class="submenu-item" onclick="setWallType('mahjong')" data-i18n="wall_mahjong">麻将墙</div>
+                    <div class="submenu-item" onclick="setWallType('emoji')" data-i18n="wall_emoji">Emoji墙</div>
+                    <div class="submenu-item" onclick="setWallType('emoji2')" data-i18n="wall_emoji2">Emoji²墙</div>
+                </div>
+            </div>
+            <div class="menu-item">
+                <span data-i18n="menu_visual">视觉效果</span>
+                <div class="submenu">
+                    <div class="submenu-item" onclick="setWallType('dynamic')" data-i18n="wall_dynamic">动态墙 ⚡</div>
+                    <div class="submenu-divider"></div>
+                    <div class="submenu-item" id="emojiBgToggle" onclick="toggleEmojiBackground()" data-i18n="emoji_bg_on">🎨 方块底色: 开</div>
+                    <div class="submenu-divider"></div>
+                    <div class="submenu-group-title" data-i18n="dyn_palette_title">动态配色</div>
+                    <div class="submenu-item" onclick="setDynPalette(0)" data-i18n="dyn_palette_a">🎨 A · 经典纯色</div>
+                    <div class="submenu-item" onclick="setDynPalette(1)" data-i18n="dyn_palette_b">🌅 B · 暖色偏移</div>
+                    <div class="submenu-item" onclick="setDynPalette(2)" data-i18n="dyn_palette_c">⚡ C · 霓虹高饱</div>
+                    <div class="submenu-item" onclick="setDynPalette(3)" data-i18n="dyn_palette_d">🍬 D · 马卡龙</div>
+                </div>
+            </div>
+            <div class="menu-item">
+                <span data-i18n="menu_game_ctrl">游戏控制</span>
+                <div class="submenu">
+                    <div class="submenu-item" onclick="setChallengeMode()" data-i18n="mode_challenge">闯关模式</div>
+                    <div class="submenu-item" onclick="setCustomMode()" data-i18n="mode_custom">自定义模式</div>
+                    <div class="submenu-divider"></div>
+                    <div class="submenu-item" onclick="stopGame()" data-i18n="menu_stop">停止</div>
+                </div>
+            </div>
+            <div class="menu-item" onclick="toggleHints()">
+                <span id="hintsToggleBtn" data-i18n="hints_off_state">提示关闭</span>
+            </div>
+            <div class="menu-item" onclick="toggleMouseTracking()">
+                <span id="mouseTrackToggleBtn" data-i18n="track_off_state">跟踪关闭</span>
+            </div>
+            <div class="menu-item">
+                <span data-i18n="menu_save_game">游戏存档</span>
+                <div class="submenu">
+                    <div class="submenu-item" onclick="saveGame()" data-i18n="save_btn">存档</div>
+                    <div class="submenu-item" onclick="loadGame()" data-i18n="load_btn">读档</div>
+                </div>
+            </div>
+            <div class="menu-item" onclick="toggleLanguage()">
+                <span data-i18n="menu_lang_toggle">Language</span>
+            </div>
+        </div>
+
+        <!-- 游戏区域 -->
+        <div id="gameArea" class="game-area">
+            <div class="panels-wrapper">
+                <canvas id="leftPanel"></canvas>
+                <canvas id="rightPanel"></canvas>
+            </div>
+            <!-- 闯关模式对话框 -->
+            <div id="challengeModeDialog" style="display: none;">
+                <h2 data-i18n="dialog_challenge_title">闯关模式</h2>
+                <select id="levelSelector" onchange="selectLevel(this.value)">
+                    <!-- 关卡选项会通过JavaScript动态生成 -->
+                </select>
+                <div class="button-group">
+                    <button onclick="window.game.startChallengeLevel()" data-i18n="btn_start">开始游戏</button>
+                    <button onclick="closeChallengeDialog()" data-i18n="btn_back">返回</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 信息统计 -->
+        <div class="stats">
+            <div class="stat-item">
+                <label data-i18n="stat_errors">点击错误次数：</label>
+                <span id="errorCount">0</span>
+            </div>
+            <div class="stat-item">
+                <label data-i18n="stat_found">已找到个数：</label>
+                <span id="foundCount">0</span>
+            </div>
+            <div class="stat-item">
+                <label data-i18n="stat_time">用时：</label>
+                <span id="timer">00:00:00</span>
+            </div>
+            <div class="stat-item">
+                <label data-i18n="stat_blocks">方块个数：</label>
+                <span id="blockCount">0x0x2=0</span>
+            </div>
+        </div>
+
+        <div class="lab-info" data-i18n="lab_info">
+            © 2024-2026 AIGC_3D视觉实验室. All Rights Reserved.
+        </div>
+
+        <!-- 自定义模式对话框 -->
+        <div id="customModeDialog" class="modal" style="display: none;">
+            <div class="modal-content custom-mode-dialog">
+                <h2 data-i18n="dialog_custom_title">自定义模式设置</h2>
+                <div class="form-group">
+                    <label data-i18n="custom_width">宽 度：</label>
+                    <input type="number" id="widthInput" min="10" max="200" value="20">
+                </div>
+                <div class="form-group">
+                    <label data-i18n="custom_height">高 度：</label>
+                    <input type="number" id="heightInput" min="10" max="200" value="20">
+                </div>
+                <div class="form-group" style="display: none;">
+                    <label data-i18n="custom_cellsize">方块大小：</label>
+                    <input type="number" id="cellSizeInput" min="5" max="50" value="28">
+                </div>
+                <div class="form-group">
+                    <label data-i18n="custom_diff">差异数量：</label>
+                    <input type="number" id="diffCountInput" min="1" value="5">
+                </div>
+                <div class="form-group">
+                    <label data-i18n="custom_font">字 体：</label>
+                    <select id="fontInput">
+                        <option value="Arial" data-i18n="font_arial">Arial (默认)</option>
+                        <option value="Microsoft YaHei" data-i18n="font_yahei">微软雅黑</option>
+                        <option value="KaiTi" data-i18n="font_kaiti">楷体</option>
+                        <option value="SimSun" data-i18n="font_simsun">宋体</option>
+                        <option value="SimHei" data-i18n="font_simhei">黑体</option>
+                        <option value="FangSong" data-i18n="font_fangsong">仿宋</option>
+                    </select>
+                </div>
+                <div class="form-group color-scheme">
+                    <label data-i18n="custom_scheme">配色/字母<br>&nbsp;&nbsp;方 案</label>
+                    <div class="radio-group">
+                        <div class="radio-item">
+                            <input type="radio" id="scheme1" name="colorScheme" checked>
+                            <label for="scheme1" data-i18n="scheme_1">方案一 (大写)</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="scheme2" name="colorScheme">
+                            <label for="scheme2" data-i18n="scheme_2">方案二 (小写)</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button onclick="applyCustomMode()" data-i18n="btn_confirm">确 认</button>
+                    <button onclick="closeCustomModeDialog()" data-i18n="btn_cancel">取 消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="i18n.js"></script>
+    <script src="magicwall.js"></script>
+    <script>
+        // Init logic
+        function setWallType(type) {
+            if (window.game) {
+                window.game.setGameType(type);
+            }
+        }
+        function setDynPalette(idx) {
+            if (window.game) {
+                window.game.setDynPalette(idx);
+            }
+        }
+        function toggleEmojiBackground() {
+            if (window.game) {
+                const on = !window.game.showEmojiBackground;
+                window.game.showEmojiBackground = on;
+                window.game.drawPanels();
+
+                const btn = document.getElementById('emojiBgToggle');
+                if (btn) {
+                    const statusKey = on ? 'emoji_bg_on' : 'emoji_bg_off';
+                    btn.setAttribute('data-i18n', statusKey);
+                    btn.textContent = typeof t === 'function' ? t(statusKey) : (on ? '🎨 方块底色: 开' : '🎨 方块底色: 关');
+                }
+            }
+        }
+        
+        function toggleHints() {
+            if (window.game) {
+                const on = !window.game.showHints;
+                window.game.showHints = on;
+                window.game.drawPanels();
+                
+                const btn = document.getElementById('hintsToggleBtn');
+                if (btn) {
+                    const statusKey = on ? 'hints_on_state' : 'hints_off_state';
+                    btn.setAttribute('data-i18n', statusKey);
+                    btn.textContent = typeof t === 'function' ? t(statusKey) : (on ? '提示开启' : '提示关闭');
+                }
+            }
+        }
+
+        function toggleMouseTracking() {
+            if (window.game) {
+                const on = !window.game.isMouseTracking;
+                window.game.isMouseTracking = on;
+                if (!on) window.game.drawPanels();
+                
+                const btn = document.getElementById('mouseTrackToggleBtn');
+                if (btn) {
+                    const statusKey = on ? 'track_on_state' : 'track_off_state';
+                    btn.setAttribute('data-i18n', statusKey);
+                    btn.textContent = typeof t === 'function' ? t(statusKey) : (on ? '跟踪开启' : '跟踪关闭');
+                }
+            }
+        }
+    </script>
+</body>
+</html> 
